@@ -147,6 +147,20 @@ export async function saveDayMissions(dayId: string, titles: [string, string, st
   });
 }
 
+/** Adiciona uma tarefa HIGH individual ao dia (para completar as 3 principais). */
+export async function addHighTask(dayId: string, title: string) {
+  const count = await prisma.task.count({ where: { dayId, priority: "HIGH" } });
+  return prisma.task.create({
+    data: {
+      dayId,
+      title: title.trim(),
+      priority: "HIGH",
+      status: "PENDING",
+      order: count,
+    },
+  });
+}
+
 /** Alterna o status de uma tarefa (PENDING ↔ DONE). */
 export async function toggleTask(taskId: string, done: boolean) {
   return prisma.task.update({

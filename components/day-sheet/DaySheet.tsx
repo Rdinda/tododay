@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 
 import {
   addExtraTask,
+  addHighTask,
   closeDay,
   getOrCreateDay,
   migrateTask,
@@ -337,8 +338,11 @@ function DaySheetExecution({
   onEncerrar: () => void;
 }) {
   const [newExtra, setNewExtra] = useState("");
+  const [newHighTask, setNewHighTask] = useState("");
   const [isPending, startTransition] = useTransition();
   const [migratingId, setMigratingId] = useState<string | null>(null);
+
+  const missingHighCount = 3 - highTasks.length;
 
   function handleToggle(taskId: string, done: boolean) {
     onTaskToggle(taskId, done);
@@ -358,6 +362,15 @@ function DaySheetExecution({
       } finally {
         setMigratingId(null);
       }
+    });
+  }
+
+  function handleAddHighTask() {
+    if (!dayId || !newHighTask.trim()) return;
+    startTransition(async () => {
+      const task = await addHighTask(dayId, newHighTask);
+      onExtraTaskAdded(task as Task);
+      setNewHighTask("");
     });
   }
 
@@ -424,6 +437,33 @@ function DaySheetExecution({
             );
           })}
         </ul>
+        {missingHighCount > 0 && (
+          <div className="mt-3 space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Faltam {missingHighCount} tarefa{missingHighCount > 1 ? "s" : ""} principal{missingHighCount > 1 ? "is" : ""}.
+            </p>
+            <div className="flex gap-2">
+              <Input
+                placeholder={`Tarefa ${highTasks.length + 1}…`}
+                className="rounded-xl text-sm"
+                value={newHighTask}
+                onChange={(e) => setNewHighTask(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleAddHighTask()}
+                disabled={isPending || !dayId}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="shrink-0 rounded-xl"
+                disabled={!newHighTask.trim() || isPending || !dayId}
+                onClick={handleAddHighTask}
+              >
+                + Adicionar
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       <Separator />
