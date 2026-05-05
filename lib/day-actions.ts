@@ -190,3 +190,55 @@ export async function recordPomodoro(dayId: string, taskId: string | null, durat
   });
 }
 
+// ─────────────────────────────────────────────
+// Migration Actions
+// ─────────────────────────────────────────────
+
+/** Migra uma tarefa pendente para outro dia. Marca a original como SKIPPED. */
+export async function migrateTask(taskId: string, targetDateStr: string) {
+  const userId = await requireUser();
+
+  // Busca a tarefa original
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    include: { day: true },
+  });
+  if (!task) throw new Error("Tarefa não encontrada");
+  if (task.status === "DONE") throw new Error("Tarefa já concluída");
+
+  // Busca ou cria o dia destino
+  const targetDay = await prisma.day.upsert({
+    where: { userId_date: { userId, date: targetDateStr } },
+    update: {},
+    create: {
+      userId,
+      date: targetDateStr,
+      status: "OPEN",
+    },
+  });
+
+  // Conta quantas tarefas já existem no dia destino para definir a ordem
+  const existingCount = await prisma.task.count({
+    where: { dayId: targetDay.id, priority: task.priority },
+  });
+
+  // Cria cópia no dia destino
+  await prisma.task.create({
+    data: {
+      dayId: targetDay.id,
+      title: task.title,
+      priority: task.priority,
+      status: "PENDING",
+      order: existingCount,
+    },
+  });
+
+  // Marca a original como SKIPPED
+  const updated = await prisma.task.update({
+    where: { id: taskId },
+    data: { status: "SKIPPED" },
+  });
+
+  return { task: updated, targetDate: targetDateStr };
+}
+

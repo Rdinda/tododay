@@ -21,9 +21,16 @@ import {
   addExtraTask,
   closeDay,
   getOrCreateDay,
+  migrateTask,
   saveDayMissions,
   toggleTask,
 } from "@/lib/day-actions";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { EncerrarDiaDialog } from "./EncerrarDiaDialog";
 import { PomodoroTimer } from "./PomodoroTimer";
 import type { DaySheetMode, DaySheetViewMeta } from "./types";
@@ -172,6 +179,13 @@ export function DaySheet({
                     )
                   );
                 }}
+                onTaskMigrated={(taskId) => {
+                  setTasks((prev) =>
+                    prev.map((t) =>
+                      t.id === taskId ? { ...t, status: "SKIPPED" } : t
+                    )
+                  );
+                }}
                 onExtraTaskAdded={(task) =>
                   setTasks((prev) => [...prev, task as Task])
                 }
@@ -179,7 +193,17 @@ export function DaySheet({
               />
             ) : null}
             {currentMode === "view" ? (
-              <DaySheetView meta={viewMeta} />
+              <DaySheetView
+                meta={viewMeta}
+                tasks={tasks}
+                onTaskMigrated={(taskId) => {
+                  setTasks((prev) =>
+                    prev.map((t) =>
+                      t.id === taskId ? { ...t, status: "SKIPPED" } : t
+                    )
+                  );
+                }}
+              />
             ) : null}
           </div>
         </SheetContent>
@@ -299,6 +323,7 @@ function DaySheetExecution({
   lowTasks,
   pomodorosToday,
   onTaskToggle,
+  onTaskMigrated,
   onExtraTaskAdded,
   onEncerrar,
 }: {
@@ -307,16 +332,32 @@ function DaySheetExecution({
   lowTasks: Task[];
   pomodorosToday: number;
   onTaskToggle: (taskId: string, done: boolean) => void;
+  onTaskMigrated: (taskId: string, targetDate: string) => void;
   onExtraTaskAdded: (task: Task) => void;
   onEncerrar: () => void;
 }) {
   const [newExtra, setNewExtra] = useState("");
   const [isPending, startTransition] = useTransition();
+  const [migratingId, setMigratingId] = useState<string | null>(null);
 
   function handleToggle(taskId: string, done: boolean) {
     onTaskToggle(taskId, done);
     startTransition(async () => {
       await toggleTask(taskId, done);
+    });
+  }
+
+  function handleMigrate(taskId: string, targetDate: string) {
+    setMigratingId(taskId);
+    startTransition(async () => {
+      try {
+        await migrateTask(taskId, targetDate);
+        onTaskMigrated(taskId, targetDate);
+      } catch (err) {
+        console.error("Erro ao migrar tarefa:", err);
+      } finally {
+        setMigratingId(null);
+      }
     });
   }
 
@@ -329,6 +370,11 @@ function DaySheetExecution({
     });
   }
 
+  // Mínimo para o input date: amanhã
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const minDate = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
+
   return (
     <div className="space-y-6 duration-300 ease-out">
       {/* Tarefas principais */}
@@ -339,12 +385,14 @@ function DaySheetExecution({
         <ul className="space-y-3">
           {highTasks.map((task) => {
             const done = task.status === "DONE";
+            const skipped = task.status === "SKIPPED";
             return (
-              <li key={task.id} className="flex items-start gap-2">
+              <li key={task.id} className="flex items-center gap-2">
                 <Checkbox
                   id={`task-${task.id}`}
-                  className="mt-0.5"
+                  className="mt-0.5 shrink-0"
                   checked={done}
+                  disabled={skipped}
                   onCheckedChange={(checked) =>
                     handleToggle(task.id, checked === true)
                   }
@@ -352,12 +400,26 @@ function DaySheetExecution({
                 <label
                   htmlFor={`task-${task.id}`}
                   className={cn(
-                    "cursor-pointer text-sm leading-snug transition-colors",
-                    done && "line-through text-muted-foreground"
+                    "flex-1 cursor-pointer text-sm leading-snug transition-colors",
+                    done && "line-through text-muted-foreground",
+                    skipped && "italic text-muted-foreground/60 line-through"
                   )}
                 >
                   {task.title}
+                  {skipped && (
+                    <span className="ml-2 inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground not-italic">
+                      Migrada →
+                    </span>
+                  )}
                 </label>
+                {!done && !skipped && (
+                  <MigrateButton
+                    taskId={task.id}
+                    minDate={minDate}
+                    migrating={migratingId === task.id}
+                    onMigrate={handleMigrate}
+                  />
+                )}
               </li>
             );
           })}
@@ -388,12 +450,14 @@ function DaySheetExecution({
           <ul className="mb-2 space-y-2">
             {lowTasks.map((task) => {
               const done = task.status === "DONE";
+              const skipped = task.status === "SKIPPED";
               return (
-                <li key={task.id} className="flex items-start gap-2">
+                <li key={task.id} className="flex items-center gap-2">
                   <Checkbox
                     id={`low-${task.id}`}
-                    className="mt-0.5"
+                    className="mt-0.5 shrink-0"
                     checked={done}
+                    disabled={skipped}
                     onCheckedChange={(checked) =>
                       handleToggle(task.id, checked === true)
                     }
@@ -401,12 +465,26 @@ function DaySheetExecution({
                   <label
                     htmlFor={`low-${task.id}`}
                     className={cn(
-                      "cursor-pointer text-sm transition-colors",
-                      done && "line-through text-muted-foreground"
+                      "flex-1 cursor-pointer text-sm transition-colors",
+                      done && "line-through text-muted-foreground",
+                      skipped && "italic text-muted-foreground/60 line-through"
                     )}
                   >
                     {task.title}
+                    {skipped && (
+                      <span className="ml-2 inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground not-italic">
+                        Migrada →
+                      </span>
+                    )}
                   </label>
+                  {!done && !skipped && (
+                    <MigrateButton
+                      taskId={task.id}
+                      minDate={minDate}
+                      migrating={migratingId === task.id}
+                      onMigrate={handleMigrate}
+                    />
+                  )}
                 </li>
               );
             })}
@@ -447,14 +525,105 @@ function DaySheetExecution({
 }
 
 // ─────────────────────────────────────────────
+// Migrate Button with Popover
+// ─────────────────────────────────────────────
+
+function MigrateButton({
+  taskId,
+  minDate,
+  migrating,
+  onMigrate,
+}: {
+  taskId: string;
+  minDate: string;
+  migrating: boolean;
+  onMigrate: (taskId: string, targetDate: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  // Parse minDate string (YYYY-MM-DD) to Date for the Calendar disabled prop
+  const minDateObj = new Date(minDate + "T00:00:00");
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-7 shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
+          title="Migrar para outro dia"
+          disabled={migrating}
+        >
+          {migrating ? (
+            <span className="size-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          ) : (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14" />
+              <path d="m12 5 7 7-7 7" />
+            </svg>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-auto p-0">
+        <div className="p-3 pb-1">
+          <p className="text-xs font-medium text-muted-foreground">Migrar para:</p>
+        </div>
+        <Calendar
+          mode="single"
+          disabled={{ before: minDateObj }}
+          defaultMonth={minDateObj}
+          onSelect={(date) => {
+            if (date) {
+              const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+              onMigrate(taskId, dateStr);
+              setOpen(false);
+            }
+          }}
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// ─────────────────────────────────────────────
 // Mode C: Visualização histórica
 // ─────────────────────────────────────────────
 
-function DaySheetView({ meta }: { meta: DaySheetViewMeta }) {
+function DaySheetView({
+  meta,
+  tasks,
+  onTaskMigrated,
+}: {
+  meta: DaySheetViewMeta;
+  tasks: Task[];
+  onTaskMigrated: (taskId: string, targetDate: string) => void;
+}) {
+  const [migratingId, setMigratingId] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
+
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const minDate = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
+
+  function handleMigrate(taskId: string, targetDate: string) {
+    setMigratingId(taskId);
+    startTransition(async () => {
+      try {
+        await migrateTask(taskId, targetDate);
+        onTaskMigrated(taskId, targetDate);
+      } catch (err) {
+        console.error("Erro ao migrar tarefa:", err);
+      } finally {
+        setMigratingId(null);
+      }
+    });
+  }
+
   const badge =
     meta.dayStatus === "done" ? (
       <Badge className="rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/20">
-        Concluído ✅
+        Concluído
       </Badge>
     ) : meta.dayStatus === "failed" ? (
       <Badge className="rounded-lg bg-red-500/15 text-red-400 hover:bg-red-500/20">
@@ -466,9 +635,70 @@ function DaySheetView({ meta }: { meta: DaySheetViewMeta }) {
       </Badge>
     );
 
+  const highTasks = tasks.filter((t) => t.priority === "HIGH");
+  const lowTasks = tasks.filter((t) => t.priority === "LOW");
+  const allTasks = [...highTasks, ...lowTasks];
+  const hasPending = allTasks.some((t) => t.status === "PENDING");
+
   return (
     <div className="space-y-4 duration-300 ease-out">
       <div>{badge}</div>
+
+      {/* Lista de tarefas */}
+      {allTasks.length > 0 && (
+        <div>
+          <p className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            Tarefas
+          </p>
+          <ul className="space-y-2">
+            {allTasks.map((task) => {
+              const done = task.status === "DONE";
+              const skipped = task.status === "SKIPPED";
+              const pending = task.status === "PENDING";
+              return (
+                <li key={task.id} className="flex items-center gap-2">
+                  <span className={cn(
+                    "size-4 shrink-0 flex items-center justify-center rounded text-[10px]",
+                    done && "text-emerald-500",
+                    pending && "text-yellow-500",
+                    skipped && "text-muted-foreground/50"
+                  )}>
+                    {done ? "✓" : pending ? "○" : "→"}
+                  </span>
+                  <span
+                    className={cn(
+                      "flex-1 text-sm leading-snug",
+                      done && "line-through text-muted-foreground",
+                      skipped && "italic text-muted-foreground/60 line-through"
+                    )}
+                  >
+                    {task.title}
+                    {skipped && (
+                      <span className="ml-2 inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground not-italic">
+                        Migrada →
+                      </span>
+                    )}
+                  </span>
+                  {pending && (
+                    <MigrateButton
+                      taskId={task.id}
+                      minDate={minDate}
+                      migrating={migratingId === task.id}
+                      onMigrate={handleMigrate}
+                    />
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          {hasPending && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Clique na seta → para migrar tarefas pendentes para outro dia.
+            </p>
+          )}
+        </div>
+      )}
+
       <div>
         <p className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
           Nota do dia
