@@ -193,7 +193,7 @@ export function DaySheet({
           if (!id) return;
           await closeDay(id, status, note);
           setEncerrarOpen(false);
-          
+
           if (onDayClosed) {
             onDayClosed();
             // REMOVED: onOpenChange(false) so the sheet stays open and transitions to view
@@ -211,7 +211,7 @@ export function DaySheet({
 }
 
 // ─────────────────────────────────────────────
-// Mode A: Criar missões
+// Mode A: Criar tarefas
 // ─────────────────────────────────────────────
 
 function DaySheetCreate({
@@ -248,22 +248,22 @@ function DaySheetCreate({
   const buttonLabel = saving
     ? "Salvando…"
     : loading
-    ? "Conectando…"
-    : "Salvar missões";
+      ? "Conectando…"
+      : "Salvar tarefas";
 
   return (
     <div className="space-y-4 duration-300 ease-out">
-      <h2 className="text-base font-medium">Quais são suas 3 missões de hoje?</h2>
+      <h2 className="text-base font-medium">Quais são suas 3 tarefas principais de hoje?</h2>
       {([0, 1, 2] as const).map((i) => (
         <div key={i} className="space-y-2">
           <Label htmlFor={`m${i + 1}`}>
-            Missão {i + 1} <span className="text-destructive">*</span>
+            Tarefa {i + 1} <span className="text-destructive">*</span>
           </Label>
           <Input
             id={`m${i + 1}`}
             name={`m${i + 1}`}
             className="rounded-xl"
-            placeholder={`Missão ${i + 1}…`}
+            placeholder={`Tarefa ${i + 1}…`}
             value={missions[i]}
             onChange={(e) => {
               const next = [...missions];
@@ -331,10 +331,10 @@ function DaySheetExecution({
 
   return (
     <div className="space-y-6 duration-300 ease-out">
-      {/* Missões principais */}
+      {/* Tarefas principais */}
       <div>
         <p className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          Missões do dia
+          Tarefas do dia
         </p>
         <ul className="space-y-3">
           {highTasks.map((task) => {

@@ -40,7 +40,7 @@ export function EncerrarDiaDialog({
         <DialogHeader>
           <DialogTitle>Encerrar o dia?</DialogTitle>
           <DialogDescription>
-            Você concluiu suas missões principais hoje?
+            Você concluiu suas tarefas principais hoje?
           </DialogDescription>
         </DialogHeader>
 

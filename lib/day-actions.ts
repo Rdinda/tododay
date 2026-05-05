@@ -116,7 +116,7 @@ export async function closeDay(dayId: string, status: "DONE" | "FAILED", note: s
 // Task Actions
 // ─────────────────────────────────────────────
 
-/** Cria as 3 missões principais do dia. */
+/** Cria as 3 tarefas principais do dia. */
 export async function saveDayMissions(dayId: string, titles: [string, string, string]) {
   // Remove as antigas HIGH se existirem
   await prisma.task.deleteMany({

@@ -11,10 +11,10 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type CellVisual = "empty" | "done" | "failed" | "today" | "future";
-type DayData = { 
-  status: string; 
-  note: string | null; 
-  pomodoros: number; 
+type DayData = {
+  status: string;
+  note: string | null;
+  pomodoros: number;
   tasks: { id: string; title: string; status: string }[];
 };
 
@@ -162,15 +162,15 @@ export default function CalendarApp() {
   const viewMeta: DaySheetViewMeta | undefined =
     sheetMode === "view" && selectedDate
       ? {
-          dayStatus:
-            dayStatusMap[toLocalDate(selectedDate)]?.status === "DONE"
-              ? "done"
-              : dayStatusMap[toLocalDate(selectedDate)]?.status === "FAILED"
+        dayStatus:
+          dayStatusMap[toLocalDate(selectedDate)]?.status === "DONE"
+            ? "done"
+            : dayStatusMap[toLocalDate(selectedDate)]?.status === "FAILED"
               ? "failed"
               : "empty",
-          dayNote: dayStatusMap[toLocalDate(selectedDate)]?.note || "",
-          pomodoros: dayStatusMap[toLocalDate(selectedDate)]?.pomodoros || 0,
-        }
+        dayNote: dayStatusMap[toLocalDate(selectedDate)]?.note || "",
+        pomodoros: dayStatusMap[toLocalDate(selectedDate)]?.pomodoros || 0,
+      }
       : undefined;
 
   return (
@@ -178,7 +178,7 @@ export default function CalendarApp() {
       <header className="flex shrink-0 items-center justify-between gap-4 border-b border-border px-4 py-3 md:px-6">
         <div className="flex items-center gap-2 min-w-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="TodoDay logo" width={28} height={28} className="shrink-0 rounded-md" />
+          <img src="/logo.png" alt="TodoDay logo" width={28} height={28} className="shrink-0 rounded-md bg-white p-0.5" />
           <p className="truncate text-sm font-semibold tracking-tight">TodoDay</p>
         </div>
 
@@ -214,7 +214,6 @@ export default function CalendarApp() {
 
         <div className="flex items-center gap-2">
           <Badge className="rounded-xl bg-primary/15 px-3 py-1 text-primary hover:bg-primary/20 flex gap-2">
-            <span>🔥 {userStats.currentStreak}</span>
             <span>🍅 {userStats.totalPomodoros}</span>
           </Badge>
           <form action={logoutSession}>
@@ -288,7 +287,7 @@ export default function CalendarApp() {
                     ) : null}
                   </span>
                 </div>
-                
+
                 <div className="mt-1 flex w-full flex-col gap-1 overflow-hidden">
                   {dayStatusMap[toLocalDate(d)]?.tasks?.map((task) => (
                     <div

@@ -5,7 +5,7 @@ import { useState } from "react";
 import { loginWithPasscode } from "@/lib/auth/login-action";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -44,14 +44,14 @@ export function LoginForm({ hasError }: LoginFormProps) {
     <main className="mx-auto flex min-h-screen w-full max-w-md items-center justify-center px-6 py-10">
       <Card className="w-full border-border bg-card shadow-none">
         <CardContent className="space-y-6 p-6 pt-8">
-          <div className="text-center">
+          <div className="flex flex-col items-center text-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="TodoDay logo" width={48} height={48} className="mb-3 shrink-0 rounded-xl bg-white p-1 shadow-sm" />
             <h1 className="text-2xl font-bold tracking-tight">TodoDay</h1>
             <p className="mt-1 text-sm text-muted-foreground">Faça o que importa. Todo dia.</p>
           </div>
 
-          <Separator />
-
-          <div className="space-y-3">
+          <div className="space-y-4">
             <Button
               type="button"
               variant="default"
@@ -63,43 +63,44 @@ export function LoginForm({ hasError }: LoginFormProps) {
               <GoogleIcon className="size-5" />
               Entrar com Google
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              className="h-12 w-full rounded-xl text-base"
-              onClick={() => setEmailPathOpen((o) => !o)}
-            >
-              Entrar com e-mail
-            </Button>
-          </div>
 
-          {emailPathOpen ? (
-            <form action={loginWithPasscode} className="space-y-4 duration-300 ease-out animate-in fade-in-0">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">Ou</span>
+              </div>
+            </div>
+
+            <form action={loginWithPasscode} className="space-y-4">
               {hasError ? (
                 <p className="rounded-lg border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive">
                   Passcode inválido.
                 </p>
               ) : null}
-              <div className="space-y-2">
-                <Label htmlFor="passcode">Passcode de acesso</Label>
-                <Input
-                  id="passcode"
-                  name="passcode"
-                  type="password"
-                  required
-                  autoComplete="current-password"
-                  className="rounded-xl"
-                />
-                <p className="text-xs text-muted-foreground">Acesso de desenvolvimento (env TODODAY_ACCESS_PASSCODE).</p>
+              <div className="space-y-2 text-center">
+                <Label htmlFor="passcode" className="justify-center">Passcode</Label>
+                <div className="flex justify-center">
+                  <InputOTP maxLength={6} name="passcode" id="passcode">
+                    <InputOTPGroup>
+                      <InputOTPSlot index={0} className="h-12 w-10 sm:w-12 text-lg" />
+                      <InputOTPSlot index={1} className="h-12 w-10 sm:w-12 text-lg" />
+                      <InputOTPSlot index={2} className="h-12 w-10 sm:w-12 text-lg" />
+                      <InputOTPSlot index={3} className="h-12 w-10 sm:w-12 text-lg" />
+                      <InputOTPSlot index={4} className="h-12 w-10 sm:w-12 text-lg" />
+                      <InputOTPSlot index={5} className="h-12 w-10 sm:w-12 text-lg" />
+                    </InputOTPGroup>
+                  </InputOTP>
+                </div>
               </div>
               <Button type="submit" className="h-10 w-full rounded-xl">
                 Acessar
               </Button>
             </form>
-          ) : null}
+          </div>
 
-          <p className={cn("text-center text-xs text-muted-foreground", emailPathOpen && "pt-2")}>
+          <p className="pt-2 text-center text-xs text-muted-foreground">
             Sem cartão de crédito. Sempre grátis.
           </p>
         </CardContent>
