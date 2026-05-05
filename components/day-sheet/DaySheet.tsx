@@ -362,9 +362,10 @@ function DaySheetExecution({
                 <label
                   htmlFor={`task-${task.id}`}
                   className={cn(
-                    "flex-1 cursor-pointer text-sm leading-snug transition-colors",
-                    done && "line-through text-muted-foreground",
-                    skipped && "italic text-muted-foreground/60 line-through"
+                    "flex-1 cursor-pointer text-sm capitalize leading-snug transition-colors",
+                    done && "text-emerald-400",
+                    !done && !skipped && "text-amber-400",
+                    skipped && "italic text-muted-foreground/60"
                   )}
                 >
                   {task.title}
@@ -454,9 +455,10 @@ function DaySheetExecution({
                   <label
                     htmlFor={`low-${task.id}`}
                     className={cn(
-                      "flex-1 cursor-pointer text-sm transition-colors",
-                      done && "line-through text-muted-foreground",
-                      skipped && "italic text-muted-foreground/60 line-through"
+                      "flex-1 cursor-pointer text-sm capitalize transition-colors",
+                      done && "text-emerald-400",
+                      !done && !skipped && "text-amber-400",
+                      skipped && "italic text-muted-foreground/60"
                     )}
                   >
                     {task.title}
@@ -653,9 +655,10 @@ function DaySheetView({
                   </span>
                   <span
                     className={cn(
-                      "flex-1 text-sm leading-snug",
-                      done && "line-through text-muted-foreground",
-                      skipped && "italic text-muted-foreground/60 line-through"
+                      "flex-1 text-sm capitalize leading-snug",
+                      done && "text-emerald-400",
+                      pending && "text-amber-400",
+                      skipped && "italic text-muted-foreground/60"
                     )}
                   >
                     {task.title}

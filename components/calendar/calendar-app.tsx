@@ -293,10 +293,10 @@ export default function CalendarApp() {
                     <div
                       key={task.id}
                       className={cn(
-                        "w-full truncate rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors",
+                        "w-full truncate rounded px-1.5 py-0.5 text-[10px] font-medium capitalize transition-colors",
                         task.status === "DONE"
-                          ? "bg-primary/20 text-primary line-through opacity-70"
-                          : "bg-primary text-primary-foreground"
+                          ? "bg-emerald-500/20 text-emerald-400"
+                          : "bg-amber-500/20 text-amber-400"
                       )}
                     >
                       {task.title}
