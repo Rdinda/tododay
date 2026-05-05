@@ -10,20 +10,20 @@ const SESSION_COOKIE = "tododay_session";
 async function requireUser(): Promise<string> {
   const cookieStore = await cookies();
   const session = cookieStore.get(SESSION_COOKIE);
-  if (!session || session.value !== "1") {
+  
+  if (!session || !session.value || session.value === "1") {
+    // If there is no session or it's the old "1" dummy session, redirect to login
     redirect("/login");
   }
 
-  // Garante que o usuário "default" existe no banco
-  const user = await prisma.user.upsert({
-    where: { id: "default-user" },
-    update: {},
-    create: {
-      id: "default-user",
-      passcodeHash: process.env.TODODAY_ACCESS_PASSCODE ?? "tododay-dev",
-      name: "Usuário",
-    },
+  // Verifica se o usuário realmente existe no banco (opcional, mas recomendado)
+  const user = await prisma.user.findUnique({
+    where: { id: session.value },
   });
+
+  if (!user) {
+    redirect("/login");
+  }
 
   return user.id;
 }

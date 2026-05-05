@@ -8,7 +8,8 @@ export function middleware(request: NextRequest) {
 
   const needsAuth = pathname.startsWith("/app");
   const isAuthPage = pathname.startsWith("/login");
-  const hasSession = request.cookies.get(SESSION_COOKIE)?.value === "1";
+  const sessionCookie = request.cookies.get(SESSION_COOKIE);
+  const hasSession = !!sessionCookie && sessionCookie.value.length > 0 && sessionCookie.value !== "1";
 
   if (needsAuth && !hasSession) {
     const url = request.nextUrl.clone();

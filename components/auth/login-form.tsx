@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 
-import { loginWithPasscode } from "@/lib/auth/login-action";
+import { loginWithPasscode, requestInvite } from "@/lib/auth/login-action";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -38,7 +39,57 @@ type LoginFormProps = {
 };
 
 export function LoginForm({ hasError }: LoginFormProps) {
-  const [emailPathOpen, setEmailPathOpen] = useState(false);
+  const [isInviteMode, setIsInviteMode] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [generatedPasscode, setGeneratedPasscode] = useState<string | null>(null);
+  const [passcode, setPasscode] = useState("");
+
+  async function handleRequestInvite(formData: FormData) {
+    setInviteError(null);
+    startTransition(async () => {
+      const res = await requestInvite(formData);
+      if (res.error) {
+        setInviteError(res.error);
+      } else if (res.passcode) {
+        setGeneratedPasscode(res.passcode);
+      }
+    });
+  }
+
+  if (generatedPasscode) {
+    return (
+      <main className="mx-auto flex min-h-screen w-full max-w-md items-center justify-center px-6 py-10">
+        <Card className="w-full border-border bg-card shadow-none">
+          <CardContent className="space-y-6 p-6 pt-8 text-center">
+            <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-emerald-500/10">
+              <span className="text-xl text-emerald-500">✓</span>
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-xl font-semibold tracking-tight">Convite gerado!</h2>
+              <p className="text-sm text-muted-foreground">
+                Seu passcode de acesso é único e permanente. Guarde-o com segurança.
+              </p>
+            </div>
+            <div className="rounded-xl bg-muted p-4">
+              <span className="text-3xl font-mono tracking-widest font-bold text-foreground">
+                {generatedPasscode}
+              </span>
+            </div>
+            <Button 
+              className="w-full rounded-xl" 
+              onClick={() => {
+                setGeneratedPasscode(null);
+                setIsInviteMode(false);
+              }}
+            >
+              Fazer login agora
+            </Button>
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md items-center justify-center px-6 py-10">
@@ -52,52 +103,108 @@ export function LoginForm({ hasError }: LoginFormProps) {
           </div>
 
           <div className="space-y-4">
-            <Button
-              type="button"
-              variant="default"
-              size="lg"
-              className="h-12 w-full gap-2 rounded-xl text-base"
-              disabled
-              title="Em breve"
-            >
-              <GoogleIcon className="size-5" />
-              Entrar com Google
-            </Button>
+            {!isInviteMode && (
+              <>
+                <Button
+                  type="button"
+                  variant="default"
+                  size="lg"
+                  className="h-12 w-full gap-2 rounded-xl text-base"
+                  disabled
+                  title="Em breve"
+                >
+                  <GoogleIcon className="size-5" />
+                  Entrar com Google
+                </Button>
 
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-border" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">Ou</span>
-              </div>
-            </div>
-
-            <form action={loginWithPasscode} className="space-y-4">
-              {hasError ? (
-                <p className="rounded-lg border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive">
-                  Passcode inválido.
-                </p>
-              ) : null}
-              <div className="space-y-2 text-center">
-                <Label htmlFor="passcode" className="justify-center">Passcode</Label>
-                <div className="flex justify-center">
-                  <InputOTP maxLength={6} name="passcode" id="passcode">
-                    <InputOTPGroup>
-                      <InputOTPSlot index={0} className="h-12 w-10 sm:w-12 text-lg" />
-                      <InputOTPSlot index={1} className="h-12 w-10 sm:w-12 text-lg" />
-                      <InputOTPSlot index={2} className="h-12 w-10 sm:w-12 text-lg" />
-                      <InputOTPSlot index={3} className="h-12 w-10 sm:w-12 text-lg" />
-                      <InputOTPSlot index={4} className="h-12 w-10 sm:w-12 text-lg" />
-                      <InputOTPSlot index={5} className="h-12 w-10 sm:w-12 text-lg" />
-                    </InputOTPGroup>
-                  </InputOTP>
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-border" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">Ou passcode</span>
+                  </div>
                 </div>
-              </div>
-              <Button type="submit" className="h-10 w-full rounded-xl">
-                Acessar
-              </Button>
-            </form>
+              </>
+            )}
+
+            {isInviteMode ? (
+              <form action={handleRequestInvite} className="space-y-4">
+                <div className="text-center mb-4">
+                  <h3 className="text-sm font-medium">Solicitar convite</h3>
+                  <p className="text-xs text-muted-foreground mt-1">Informe seu e-mail para gerar seu código de acesso permanente.</p>
+                </div>
+
+                {inviteError ? (
+                  <p className="rounded-lg border border-destructive/40 bg-destructive/10 p-2 text-center text-xs text-destructive">
+                    {inviteError}
+                  </p>
+                ) : null}
+
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="sr-only">E-mail</Label>
+                  <Input 
+                    type="email" 
+                    name="email" 
+                    id="email" 
+                    required 
+                    placeholder="voce@exemplo.com" 
+                    className="h-12 rounded-xl text-center"
+                    disabled={isPending}
+                  />
+                </div>
+                <Button type="submit" className="h-12 w-full rounded-xl" disabled={isPending}>
+                  {isPending ? "Gerando passcode..." : "Gerar meu acesso"}
+                </Button>
+                
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  className="w-full text-xs text-muted-foreground" 
+                  onClick={() => {
+                    setIsInviteMode(false);
+                    setInviteError(null);
+                  }}
+                >
+                  Já tenho um passcode
+                </Button>
+              </form>
+            ) : (
+              <form action={loginWithPasscode} className="space-y-4">
+                {hasError ? (
+                  <p className="rounded-lg border border-destructive/40 bg-destructive/10 p-2 text-center text-xs text-destructive">
+                    Passcode inválido.
+                  </p>
+                ) : null}
+                <div className="space-y-2 text-center">
+                  <div className="flex justify-center">
+                    <input type="hidden" name="passcode" value={passcode} />
+                    <InputOTP maxLength={6} id="passcode" value={passcode} onChange={setPasscode}>
+                      <InputOTPGroup>
+                        <InputOTPSlot index={0} className="h-12 w-10 sm:w-12 text-lg" />
+                        <InputOTPSlot index={1} className="h-12 w-10 sm:w-12 text-lg" />
+                        <InputOTPSlot index={2} className="h-12 w-10 sm:w-12 text-lg" />
+                        <InputOTPSlot index={3} className="h-12 w-10 sm:w-12 text-lg" />
+                        <InputOTPSlot index={4} className="h-12 w-10 sm:w-12 text-lg" />
+                        <InputOTPSlot index={5} className="h-12 w-10 sm:w-12 text-lg" />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </div>
+                </div>
+                <Button type="submit" className="h-12 w-full rounded-xl">
+                  Acessar
+                </Button>
+
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  className="w-full text-xs text-muted-foreground" 
+                  onClick={() => setIsInviteMode(true)}
+                >
+                  Novo por aqui? Solicitar convite
+                </Button>
+              </form>
+            )}
           </div>
 
           <p className="pt-2 text-center text-xs text-muted-foreground">
