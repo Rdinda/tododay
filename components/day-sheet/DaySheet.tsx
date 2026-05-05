@@ -126,8 +126,7 @@ export function DaySheet({
   const highTasks = tasks.filter((t) => t.priority === "HIGH");
   const lowTasks = tasks.filter((t) => t.priority === "LOW");
 
-  const currentMode: DaySheetMode =
-    mode === "execution" && highTasks.length === 0 ? "create" : mode;
+  const currentMode: DaySheetMode = mode === "view" ? "view" : "execution";
 
   return (
     <>
@@ -153,18 +152,6 @@ export function DaySheet({
           </SheetHeader>
 
           <div className="flex-1 overflow-y-auto px-4 py-4">
-            {currentMode === "create" ? (
-              <DaySheetCreate
-                dayId={dayId}
-                loading={loading}
-                onSaved={(saved) => {
-                  setTasks((prev) => [
-                    ...prev.filter((t) => t.priority !== "HIGH"),
-                    ...saved,
-                  ]);
-                }}
-              />
-            ) : null}
             {currentMode === "execution" ? (
               <DaySheetExecution
                 dayId={dayId}
@@ -232,85 +219,6 @@ export function DaySheet({
         }}
       />
     </>
-  );
-}
-
-// ─────────────────────────────────────────────
-// Mode A: Criar tarefas
-// ─────────────────────────────────────────────
-
-function DaySheetCreate({
-  dayId,
-  loading,
-  onSaved,
-}: {
-  dayId: string | null;
-  loading: boolean;
-  onSaved: (tasks: Task[]) => void;
-}) {
-  const [missions, setMissions] = useState(["", "", ""]);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-
-  async function handleSubmit() {
-    if (!dayId) return;
-    const [m1, m2, m3] = missions as [string, string, string];
-    if (!m1.trim() || !m2.trim() || !m3.trim()) return;
-
-    setSaving(true);
-    setSaveError(null);
-    try {
-      const saved = await saveDayMissions(dayId, [m1, m2, m3]);
-      onSaved(saved as Task[]);
-    } catch (err) {
-      setSaveError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  const allFilled = missions.every((m) => m.trim().length > 0);
-  const buttonLabel = saving
-    ? "Salvando…"
-    : loading
-      ? "Conectando…"
-      : "Salvar tarefas";
-
-  return (
-    <div className="space-y-4 duration-300 ease-out">
-      <h2 className="text-base font-medium">Quais são suas 3 tarefas principais de hoje?</h2>
-      {([0, 1, 2] as const).map((i) => (
-        <div key={i} className="space-y-2">
-          <Label htmlFor={`m${i + 1}`}>
-            Tarefa {i + 1} <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id={`m${i + 1}`}
-            name={`m${i + 1}`}
-            className="rounded-xl"
-            placeholder={`Tarefa ${i + 1}…`}
-            value={missions[i]}
-            onChange={(e) => {
-              const next = [...missions];
-              next[i] = e.target.value;
-              setMissions(next);
-            }}
-            disabled={saving}
-          />
-        </div>
-      ))}
-      {saveError && (
-        <p className="text-xs text-destructive">Erro ao salvar: {saveError}</p>
-      )}
-      <Button
-        type="button"
-        className="w-full rounded-xl"
-        disabled={!allFilled || saving || loading || !dayId}
-        onClick={handleSubmit}
-      >
-        {buttonLabel}
-      </Button>
-    </div>
   );
 }
 
