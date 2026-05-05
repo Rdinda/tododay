@@ -1,80 +1,39 @@
 // TodoDay - Prisma Schema
-// Stack: Next.js 14 + shadcn/ui + Prisma + PostgreSQL
+// Stack: Next.js + Prisma + SQLite
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
 }
 
 // ─────────────────────────────────────────────
-// Auth (NextAuth.js Prisma Adapter)
-// ─────────────────────────────────────────────
-
-model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String? @db.Text
-  session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-}
-
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
-
-  @@unique([identifier, token])
-}
-
-// ─────────────────────────────────────────────
-// Domínio
+// Domínio (SQLite não suporta enum nativo)
+// Os valores válidos são validados na aplicação
 // ─────────────────────────────────────────────
 
 model User {
-  id            String    @id @default(cuid())
+  id            String   @id @default(cuid())
+  passcodeHash  String
   name          String?
-  email         String    @unique
-  emailVerified DateTime?
-  image         String?
-  timezone      String    @default("America/Sao_Paulo")
-  currentStreak Int       @default(0)
-  bestStreak    Int       @default(0)
-  createdAt     DateTime  @default(now())
+  timezone      String   @default("America/Sao_Paulo")
+  currentStreak Int      @default(0)
+  bestStreak    Int      @default(0)
+  createdAt     DateTime @default(now())
 
-  accounts Account[]
-  sessions Session[]
-  days     Day[]
+  days Day[]
 }
 
+// DayStatus: "OPEN" | "IN_PROGRESS" | "DONE" | "FAILED"
 model Day {
   id            String    @id @default(cuid())
   userId        String
-  date          DateTime  @db.Date
-  status        DayStatus @default(OPEN)
-  completedMain Boolean   @default(false)
-  note          String?   @db.VarChar(280)
+  date          String    // formato ISO: "YYYY-MM-DD"
+  status        String    @default("OPEN")
+  note          String?
   streakAtClose Int?
   createdAt     DateTime  @default(now())
   closedAt      DateTime?
@@ -83,58 +42,34 @@ model Day {
   tasks    Task[]
   sessions PomodoroSession[]
 
-  // RN07: um registro por usuário por dia
+  // Um registro por usuário por dia
   @@unique([userId, date])
 }
 
+// TaskPriority: "HIGH" | "LOW"
+// TaskStatus: "PENDING" | "IN_PROGRESS" | "DONE" | "SKIPPED"
 model Task {
-  id        String       @id @default(cuid())
+  id        String   @id @default(cuid())
   dayId     String
-  title     String       @db.VarChar(255)
-  priority  TaskPriority @default(HIGH)
-  status    TaskStatus   @default(PENDING)
-  order     Int          // posição dentro do grupo de prioridade
-  createdAt DateTime     @default(now())
+  title     String
+  priority  String   @default("HIGH")
+  status    String   @default("PENDING")
+  order     Int
+  createdAt DateTime @default(now())
 
   day      Day               @relation(fields: [dayId], references: [id], onDelete: Cascade)
   sessions PomodoroSession[]
-
-  // RN01: exatamente 3 tarefas HIGH obrigatórias (validado na aplicação)
-  // RN02: tarefas LOW podem ser adicionadas a qualquer hora, sem limite
 }
 
 model PomodoroSession {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   dayId       String
   taskId      String?
-  startedAt   DateTime @default(now())
+  startedAt   DateTime  @default(now())
   endedAt     DateTime?
-  durationMin Int      @default(25)
-  completed   Boolean  @default(false)
+  durationMin Int       @default(25)
+  completed   Boolean   @default(false)
 
   day  Day   @relation(fields: [dayId], references: [id], onDelete: Cascade)
   task Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
-}
-
-// ─────────────────────────────────────────────
-// Enums
-// ─────────────────────────────────────────────
-
-enum DayStatus {
-  OPEN
-  IN_PROGRESS
-  DONE
-  FAILED
-}
-
-enum TaskStatus {
-  PENDING
-  IN_PROGRESS
-  DONE
-  SKIPPED
-}
-
-enum TaskPriority {
-  HIGH  // tarefas principais (máx. 3, obrigatórias)
-  LOW   // tarefas extras (ilimitadas, opcionais)
 }
