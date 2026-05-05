@@ -51,8 +51,8 @@ function cellVisual(
 
 function sheetModeForVisual(v: CellVisual): DaySheetMode {
   if (v === "today") return "execution";
-  if (v === "future") return "create";
-  if (v === "empty") return "create";
+  if (v === "future") return "execution"; // DaySheet will fallback to "create" if no tasks exist
+  if (v === "empty") return "view"; // Past empty days
   return "view";
 }
 
@@ -143,8 +143,6 @@ export default function CalendarApp() {
 
   function openDay(day: number) {
     const d = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), day);
-    const v = cellVisual(d, today, dayStatusMap);
-    if (v === "future") return;
     setSelectedDate(d);
     setSheetOpen(true);
   }
@@ -248,24 +246,19 @@ export default function CalendarApp() {
               cell.day
             );
             const v = cellVisual(d, today, dayStatusMap);
-            const clickable = v !== "future";
 
             return (
               <button
                 key={`day-${cell.day}`}
                 type="button"
-                disabled={!clickable}
                 onClick={() => openDay(cell.day)}
                 className={cn(
-                  "flex min-h-[72px] flex-col items-start rounded-xl border border-transparent p-2 text-left text-sm transition-colors duration-300 ease-out",
-                  v === "empty" && "bg-card text-muted-foreground hover:bg-accent",
-                  v === "done" &&
-                    "border-emerald-500/40 bg-emerald-500/10 text-foreground hover:bg-emerald-500/15",
-                  v === "failed" &&
-                    "border-red-500/40 bg-red-500/10 text-foreground hover:bg-red-500/15",
+                  "flex min-h-[72px] flex-col items-start rounded-xl border p-2 text-left text-sm transition-colors duration-300 ease-out hover:brightness-110",
+                  v === "empty" && "border-border/60 bg-card text-muted-foreground hover:bg-accent",
+                  v === "done" && "border-emerald-500/40 bg-emerald-500/10 text-foreground hover:bg-emerald-500/15",
+                  v === "failed" && "border-red-500/40 bg-red-500/10 text-foreground hover:bg-red-500/15",
                   v === "today" && "border-primary/50 bg-primary/10 ring-1 ring-primary/50",
-                  v === "future" && "cursor-not-allowed opacity-30",
-                  clickable && "hover:brightness-110"
+                  v === "future" && "border-border/50 border-dashed bg-transparent text-muted-foreground hover:bg-accent/50"
                 )}
               >
                 <span
@@ -274,7 +267,7 @@ export default function CalendarApp() {
                     v === "today"
                       ? "bg-primary font-bold text-primary-foreground shadow-md shadow-primary/40"
                       : "",
-                    v === "future" && "text-muted-foreground"
+                    v === "future" && "text-muted-foreground/70"
                   )}
                 >
                   {cell.day}
