@@ -546,12 +546,10 @@ function MigrateButton({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-7 shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
+      <PopoverTrigger
+          className={cn(
+            "inline-flex size-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+          )}
           title="Migrar para outro dia"
           disabled={migrating}
         >
@@ -563,7 +561,6 @@ function MigrateButton({
               <path d="m12 5 7 7-7 7" />
             </svg>
           )}
-        </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-auto p-0">
         <div className="p-3 pb-1">
