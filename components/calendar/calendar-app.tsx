@@ -9,6 +9,7 @@ import { getDaysInMonth, getUserStats } from "@/lib/day-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Eye, EyeOff } from "lucide-react";
 
 type CellVisual = "empty" | "done" | "failed" | "today" | "future";
 type DayData = {
@@ -80,7 +81,8 @@ export default function CalendarApp() {
 
   // Mapa de status dos dias vindos do banco
   const [dayStatusMap, setDayStatusMap] = useState<Record<string, DayData>>({});
-  const [userStats, setUserStats] = useState({ currentStreak: 0, totalPomodoros: 0 });
+  const [userStats, setUserStats] = useState({ currentStreak: 0, totalPomodoros: 0, passcodeHash: "" });
+  const [showPasscode, setShowPasscode] = useState(false);
   const [, startTransition] = useTransition();
 
   // Extrai a lógica de carregamento para poder ser reutilizada
@@ -213,6 +215,22 @@ export default function CalendarApp() {
         </div>
 
         <div className="flex items-center gap-2">
+          {userStats.passcodeHash && (
+            <div className="flex items-center gap-2 rounded-xl border border-border px-3 py-1">
+              <span className="text-sm font-mono text-muted-foreground">
+                {showPasscode ? userStats.passcodeHash : "••••••"}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={() => setShowPasscode(!showPasscode)}
+              >
+                {showPasscode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
+            </div>
+          )}
           <Badge className="rounded-xl bg-primary/15 px-3 py-1 text-primary hover:bg-primary/20 flex gap-2">
             <span>🍅 {userStats.totalPomodoros}</span>
           </Badge>

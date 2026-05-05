@@ -62,7 +62,7 @@ export async function getUserStats() {
   const userId = await requireUser();
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { currentStreak: true, bestStreak: true }
+    select: { currentStreak: true, bestStreak: true, passcodeHash: true }
   });
   const pomodoros = await prisma.pomodoroSession.count({
     where: { day: { userId } }
@@ -70,6 +70,7 @@ export async function getUserStats() {
   return {
     currentStreak: user?.currentStreak || 0,
     totalPomodoros: pomodoros,
+    passcodeHash: user?.passcodeHash || "",
   };
 }
 
