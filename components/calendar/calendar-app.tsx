@@ -11,7 +11,12 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type CellVisual = "empty" | "done" | "failed" | "today" | "future";
-type DayData = { status: string; note: string | null; pomodoros: number };
+type DayData = { 
+  status: string; 
+  note: string | null; 
+  pomodoros: number; 
+  tasks: { id: string; title: string; status: string }[];
+};
 
 function startOfDay(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -91,6 +96,7 @@ export default function CalendarApp() {
           status: d.status,
           note: d.note,
           pomodoros: d._count.sessions,
+          tasks: (d as any).tasks || [],
         };
       }
       setDayStatusMap(map);
@@ -261,25 +267,43 @@ export default function CalendarApp() {
                   v === "future" && "border-border/50 border-dashed bg-transparent text-muted-foreground hover:bg-accent/50"
                 )}
               >
-                <span
-                  className={cn(
-                    "flex size-7 items-center justify-center rounded-full text-sm font-medium",
-                    v === "today"
-                      ? "bg-primary font-bold text-primary-foreground shadow-md shadow-primary/40"
-                      : "",
-                    v === "future" && "text-muted-foreground/70"
-                  )}
-                >
-                  {cell.day}
-                </span>
-                <span className="mt-auto inline-flex size-2 rounded-full bg-transparent">
-                  {v === "done" ? (
-                    <span className="size-2 rounded-full bg-emerald-500" />
-                  ) : null}
-                  {v === "failed" ? (
-                    <span className="size-2 rounded-full bg-red-500" />
-                  ) : null}
-                </span>
+                <div className="flex w-full items-center justify-between">
+                  <span
+                    className={cn(
+                      "flex size-7 items-center justify-center rounded-full text-sm font-medium shrink-0",
+                      v === "today"
+                        ? "bg-primary font-bold text-primary-foreground shadow-md shadow-primary/40"
+                        : "",
+                      v === "future" && "text-muted-foreground/70"
+                    )}
+                  >
+                    {cell.day}
+                  </span>
+                  <span className="inline-flex size-2 shrink-0 rounded-full bg-transparent">
+                    {v === "done" ? (
+                      <span className="size-2 rounded-full bg-emerald-500" />
+                    ) : null}
+                    {v === "failed" ? (
+                      <span className="size-2 rounded-full bg-red-500" />
+                    ) : null}
+                  </span>
+                </div>
+                
+                <div className="mt-1 flex w-full flex-col gap-1 overflow-hidden">
+                  {dayStatusMap[toLocalDate(d)]?.tasks?.map((task) => (
+                    <div
+                      key={task.id}
+                      className={cn(
+                        "w-full truncate rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors",
+                        task.status === "DONE"
+                          ? "bg-primary/20 text-primary line-through opacity-70"
+                          : "bg-primary text-primary-foreground"
+                      )}
+                    >
+                      {task.title}
+                    </div>
+                  ))}
+                </div>
               </button>
             );
           })}

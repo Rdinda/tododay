@@ -90,6 +90,11 @@ export async function getDaysInMonth(year: number, month: number) {
       note: true,
       _count: {
         select: { sessions: true }
+      },
+      tasks: {
+        where: { priority: "HIGH" },
+        select: { id: true, title: true, status: true },
+        orderBy: { order: "asc" },
       }
     },
   });
