@@ -42,3 +42,13 @@ next-env.d.ts
 
 /app/generated/prisma
 stitch_tododay
+
+# OpenNext
+.open-next
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+
+!.env.example
