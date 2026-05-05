@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,7 @@ type Task = {
 export type DaySheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onDayClosed?: () => void;
   dateLabel: string;
   date: Date | null;
   mode: DaySheetMode;
@@ -57,6 +58,7 @@ export type DaySheetProps = {
 export function DaySheet({
   open,
   onOpenChange,
+  onDayClosed,
   dateLabel,
   date,
   mode,
@@ -69,43 +71,59 @@ export function DaySheet({
 }: DaySheetProps) {
   const [encerrarOpen, setEncerrarOpen] = useState(false);
 
-  // Estado do dia carregado do banco
   const [dayId, setDayId] = useState<string | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [dayLoaded, setDayLoaded] = useState(false);
-  const [isPending, startTransition] = useTransition();
+  const [pomodorosCount, setPomodorosCount] = useState<number>(0);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  // Carrega ou cria o day quando o sheet abre
-  const loadDay = useCallback(() => {
-    if (!date || dayLoaded) return;
-    startTransition(async () => {
-      try {
-        const day = await getOrCreateDay(date);
-        setDayId(day.id);
-        setTasks(day.tasks as Task[]);
-        setDayLoaded(true);
-      } catch (err) {
-        console.error("Erro ao carregar dia:", err);
-      }
-    });
-  }, [date, dayLoaded]);
+  // Ref para preservar o dayId mesmo depois que o Sheet começa a fechar
+  const dayIdRef = useRef<string | null>(null);
 
-  function handleOpenChange(o: boolean) {
-    if (o) loadDay();
-    else setDayLoaded(false); // reseta ao fechar para recarregar no próximo open
-    onOpenChange(o);
+  async function loadDay(d: Date) {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const day = await getOrCreateDay(d);
+      setDayId(day.id);
+      dayIdRef.current = day.id;
+      setTasks(day.tasks as Task[]);
+      setPomodorosCount(day.sessions?.length || 0);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setLoadError(msg);
+      console.error("Erro ao carregar dia:", err);
+    } finally {
+      setLoading(false);
+    }
   }
+
+  // Radix não chama onOpenChange quando o pai seta open=true via prop —
+  // useEffect garante que loadDay rode corretamente ao abrir.
+  useEffect(() => {
+    if (open && date && !dayId && !loading) {
+      void loadDay(date);
+    }
+    if (!open && !encerrarOpen) {
+      // Só reseta se o dialog de encerrar também estiver fechado
+      setDayId(null);
+      dayIdRef.current = null;
+      setTasks([]);
+      setPomodorosCount(0);
+      setLoadError(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, date]);
 
   const highTasks = tasks.filter((t) => t.priority === "HIGH");
   const lowTasks = tasks.filter((t) => t.priority === "LOW");
-  const pomodoroCount = 0; // será lido do banco futuramente
 
   const currentMode: DaySheetMode =
     mode === "execution" && highTasks.length === 0 ? "create" : mode;
 
   return (
     <>
-      <Sheet open={open} onOpenChange={handleOpenChange}>
+      <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="right"
           showCloseButton
@@ -116,8 +134,13 @@ export function DaySheet({
         >
           <SheetHeader className="gap-1 border-b border-border px-4 pt-2 pb-4 text-left">
             <SheetTitle className="text-lg">{dateLabel}</SheetTitle>
-            {isPending && (
-              <p className="text-xs text-muted-foreground">Carregando...</p>
+            {loading && (
+              <p className="text-xs text-muted-foreground animate-pulse">Conectando ao banco…</p>
+            )}
+            {loadError && (
+              <p className="text-xs text-destructive">
+                Erro: {loadError}
+              </p>
             )}
           </SheetHeader>
 
@@ -125,6 +148,7 @@ export function DaySheet({
             {currentMode === "create" ? (
               <DaySheetCreate
                 dayId={dayId}
+                loading={loading}
                 onSaved={(saved) => {
                   setTasks((prev) => [
                     ...prev.filter((t) => t.priority !== "HIGH"),
@@ -138,7 +162,7 @@ export function DaySheet({
                 dayId={dayId}
                 highTasks={highTasks}
                 lowTasks={lowTasks}
-                pomodorosToday={pomodoroCount}
+                pomodorosToday={pomodorosCount}
                 onTaskToggle={(taskId, done) => {
                   setTasks((prev) =>
                     prev.map((t) =>
@@ -164,10 +188,22 @@ export function DaySheet({
         open={encerrarOpen}
         onOpenChange={setEncerrarOpen}
         onConfirm={async (status, note) => {
-          if (!dayId) return;
-          await closeDay(dayId, status, note);
+          // Usa ref para garantir que o dayId não seja null por race condition
+          const id = dayIdRef.current;
+          if (!id) return;
+          await closeDay(id, status, note);
           setEncerrarOpen(false);
-          onOpenChange(false);
+          
+          if (onDayClosed) {
+            onDayClosed();
+            // REMOVED: onOpenChange(false) so the sheet stays open and transitions to view
+          } else {
+            // Limpa estado e fecha o sheet
+            setDayId(null);
+            dayIdRef.current = null;
+            setTasks([]);
+            onOpenChange(false);
+          }
         }}
       />
     </>
@@ -180,26 +216,40 @@ export function DaySheet({
 
 function DaySheetCreate({
   dayId,
+  loading,
   onSaved,
 }: {
   dayId: string | null;
+  loading: boolean;
   onSaved: (tasks: Task[]) => void;
 }) {
   const [missions, setMissions] = useState(["", "", ""]);
-  const [isPending, startTransition] = useTransition();
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!dayId) return;
     const [m1, m2, m3] = missions as [string, string, string];
     if (!m1.trim() || !m2.trim() || !m3.trim()) return;
 
-    startTransition(async () => {
+    setSaving(true);
+    setSaveError(null);
+    try {
       const saved = await saveDayMissions(dayId, [m1, m2, m3]);
       onSaved(saved as Task[]);
-    });
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSaving(false);
+    }
   }
 
   const allFilled = missions.every((m) => m.trim().length > 0);
+  const buttonLabel = saving
+    ? "Salvando…"
+    : loading
+    ? "Conectando…"
+    : "Salvar missões";
 
   return (
     <div className="space-y-4 duration-300 ease-out">
@@ -220,18 +270,20 @@ function DaySheetCreate({
               next[i] = e.target.value;
               setMissions(next);
             }}
-            disabled={isPending}
+            disabled={saving}
           />
         </div>
       ))}
+      {saveError && (
+        <p className="text-xs text-destructive">Erro ao salvar: {saveError}</p>
+      )}
       <Button
         type="button"
         className="w-full rounded-xl"
-        disabled={!allFilled || isPending || !dayId}
+        disabled={!allFilled || saving || loading || !dayId}
         onClick={handleSubmit}
-        title={!dayId ? "Aguardando conexão com o banco…" : undefined}
       >
-        {isPending ? "Salvando…" : !dayId ? "Carregando…" : "Salvar missões"}
+        {buttonLabel}
       </Button>
     </div>
   );

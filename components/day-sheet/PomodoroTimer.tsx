@@ -75,6 +75,10 @@ export function PomodoroTimer({
   const [totalDuration, setTotalDuration] = useState(POMODORO_DURATION);
   const [pomodorosToday, setPomodorosToday] = useState(initialPomodoros);
 
+  useEffect(() => {
+    setPomodorosToday(initialPomodoros);
+  }, [initialPomodoros]);
+
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const clearTimer = useCallback(() => {

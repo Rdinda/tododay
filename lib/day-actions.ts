@@ -57,6 +57,22 @@ export async function getOrCreateDay(date: Date) {
   });
 }
 
+/** Retorna estatísticas do usuário (oficial). */
+export async function getUserStats() {
+  const userId = await requireUser();
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { currentStreak: true, bestStreak: true }
+  });
+  const pomodoros = await prisma.pomodoroSession.count({
+    where: { day: { userId } }
+  });
+  return {
+    currentStreak: user?.currentStreak || 0,
+    totalPomodoros: pomodoros,
+  };
+}
+
 /** Retorna todos os dias do mês para pintar o calendário. */
 export async function getDaysInMonth(year: number, month: number) {
   const userId = await requireUser();
@@ -68,7 +84,14 @@ export async function getDaysInMonth(year: number, month: number) {
       userId,
       date: { gte: firstDay, lte: lastDay },
     },
-    select: { date: true, status: true },
+    select: { 
+      date: true, 
+      status: true,
+      note: true,
+      _count: {
+        select: { sessions: true }
+      }
+    },
   });
 }
 
@@ -161,3 +184,4 @@ export async function recordPomodoro(dayId: string, taskId: string | null, durat
     },
   });
 }
+

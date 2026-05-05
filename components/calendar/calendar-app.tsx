@@ -5,12 +5,13 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { DaySheet } from "@/components/day-sheet/DaySheet";
 import type { DaySheetMode, DaySheetViewMeta } from "@/components/day-sheet/types";
 import { logoutSession } from "@/lib/auth/logout-action";
-import { getDaysInMonth } from "@/lib/day-actions";
+import { getDaysInMonth, getUserStats } from "@/lib/day-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type CellVisual = "empty" | "done" | "failed" | "today" | "future";
+type DayData = { status: string; note: string | null; pomodoros: number };
 
 function startOfDay(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -31,17 +32,20 @@ function toLocalDate(d: Date): string {
 function cellVisual(
   dayDate: Date,
   today: Date,
-  dayStatusMap: Record<string, string>
+  dayStatusMap: Record<string, DayData>
 ): CellVisual {
   const d0 = startOfDay(dayDate);
   const t0 = startOfDay(today);
+  const key = toLocalDate(d0);
+  const dayData = dayStatusMap[key];
+
+  // O status do banco (DONE/FAILED) tem prioridade, mesmo que seja hoje
+  if (dayData?.status === "DONE") return "done";
+  if (dayData?.status === "FAILED") return "failed";
+
   if (d0.getTime() > t0.getTime()) return "future";
   if (sameDay(d0, t0)) return "today";
 
-  const key = toLocalDate(d0);
-  const status = dayStatusMap[key];
-  if (status === "DONE") return "done";
-  if (status === "FAILED") return "failed";
   return "empty";
 }
 
@@ -69,28 +73,50 @@ export default function CalendarApp() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
-  // Mapa de status dos dias vindos do banco: { "YYYY-MM-DD": "DONE" | "FAILED" | ... }
-  const [dayStatusMap, setDayStatusMap] = useState<Record<string, string>>({});
+  // Mapa de status dos dias vindos do banco
+  const [dayStatusMap, setDayStatusMap] = useState<Record<string, DayData>>({});
+  const [userStats, setUserStats] = useState({ currentStreak: 0, totalPomodoros: 0 });
   const [, startTransition] = useTransition();
 
-  // Carrega os dias do mês atual do banco
-  useEffect(() => {
-    startTransition(async () => {
-      try {
-        const days = await getDaysInMonth(
-          viewMonth.getFullYear(),
-          viewMonth.getMonth()
-        );
-        const map: Record<string, string> = {};
-        for (const d of days) {
-          map[d.date] = d.status;
-        }
-        setDayStatusMap(map);
-      } catch (err) {
-        console.error("Erro ao carregar dias do mês:", err);
+  // Extrai a lógica de carregamento para poder ser reutilizada
+  const loadMonthData = async (date: Date) => {
+    try {
+      const [days, stats] = await Promise.all([
+        getDaysInMonth(date.getFullYear(), date.getMonth()),
+        getUserStats(),
+      ]);
+      const map: Record<string, DayData> = {};
+      for (const d of days) {
+        map[d.date as string] = {
+          status: d.status,
+          note: d.note,
+          pomodoros: d._count.sessions,
+        };
       }
+      setDayStatusMap(map);
+      setUserStats(stats);
+    } catch (err) {
+      console.error("Erro ao carregar dias do mês:", err);
+    }
+  };
+
+  // Carrega os dias do mês ao mudar o viewMonth
+  useEffect(() => {
+    startTransition(() => {
+      void loadMonthData(viewMonth);
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMonth]);
+
+  // Recarrega os dados caso a gaveta (Sheet) seja fechada (ex: um dia foi encerrado)
+  useEffect(() => {
+    if (!sheetOpen) {
+      startTransition(() => {
+        void loadMonthData(viewMonth);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sheetOpen]);
 
   const monthLabel = useMemo(
     () =>
@@ -133,20 +159,22 @@ export default function CalendarApp() {
     sheetMode === "view" && selectedDate
       ? {
           dayStatus:
-            dayStatusMap[toLocalDate(selectedDate)] === "DONE"
+            dayStatusMap[toLocalDate(selectedDate)]?.status === "DONE"
               ? "done"
-              : dayStatusMap[toLocalDate(selectedDate)] === "FAILED"
+              : dayStatusMap[toLocalDate(selectedDate)]?.status === "FAILED"
               ? "failed"
               : "empty",
-          dayNote: "",
-          pomodoros: 0,
+          dayNote: dayStatusMap[toLocalDate(selectedDate)]?.note || "",
+          pomodoros: dayStatusMap[toLocalDate(selectedDate)]?.pomodoros || 0,
         }
       : undefined;
 
   return (
     <div className="flex h-screen min-h-[520px] flex-col overflow-hidden bg-background duration-300 ease-out">
       <header className="flex shrink-0 items-center justify-between gap-4 border-b border-border px-4 py-3 md:px-6">
-        <div className="min-w-0">
+        <div className="flex items-center gap-2 min-w-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="TodoDay logo" width={28} height={28} className="shrink-0 rounded-md" />
           <p className="truncate text-sm font-semibold tracking-tight">TodoDay</p>
         </div>
 
@@ -181,8 +209,9 @@ export default function CalendarApp() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Badge className="rounded-xl bg-primary/15 px-3 py-1 text-primary hover:bg-primary/20">
-            🔥 5
+          <Badge className="rounded-xl bg-primary/15 px-3 py-1 text-primary hover:bg-primary/20 flex gap-2">
+            <span>🔥 {userStats.currentStreak}</span>
+            <span>🍅 {userStats.totalPomodoros}</span>
           </Badge>
           <form action={logoutSession}>
             <Button type="submit" variant="outline" size="sm" className="rounded-xl">
@@ -269,17 +298,15 @@ export default function CalendarApp() {
         onOpenChange={(o) => {
           setSheetOpen(o);
           if (!o) {
-            // Recarrega o calendário ao fechar para refletir mudanças
-            startTransition(async () => {
-              const days = await getDaysInMonth(
-                viewMonth.getFullYear(),
-                viewMonth.getMonth()
-              );
-              const map: Record<string, string> = {};
-              for (const d of days) map[d.date] = d.status;
-              setDayStatusMap(map);
+            startTransition(() => {
+              void loadMonthData(viewMonth);
             });
           }
+        }}
+        onDayClosed={() => {
+          startTransition(() => {
+            void loadMonthData(viewMonth);
+          });
         }}
         dateLabel={selectedDate ? formatSheetTitle(selectedDate) : ""}
         date={selectedDate}
