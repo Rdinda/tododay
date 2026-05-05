@@ -30,6 +30,7 @@ export default function RootLayout({
     <html
       lang="pt-BR"
       className={`dark ${inter.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col duration-300 ease-out">{children}</body>
     </html>
