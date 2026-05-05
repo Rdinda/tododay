@@ -16,6 +16,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import {
   addExtraTask,
@@ -141,9 +142,6 @@ export function DaySheet({
         >
           <SheetHeader className="gap-1 border-b border-border px-4 pt-2 pb-4 text-left">
             <SheetTitle className="text-lg">{dateLabel}</SheetTitle>
-            {loading && (
-              <p className="text-xs text-muted-foreground animate-pulse">Conectando ao banco…</p>
-            )}
             {loadError && (
               <p className="text-xs text-destructive">
                 Erro: {loadError}
@@ -152,7 +150,9 @@ export function DaySheet({
           </SheetHeader>
 
           <div className="flex-1 overflow-y-auto px-4 py-4">
-            {currentMode === "execution" ? (
+            {loading ? (
+              <DaySheetSkeleton />
+            ) : currentMode === "execution" ? (
               <DaySheetExecution
                 dayId={dayId}
                 highTasks={highTasks}
@@ -219,6 +219,47 @@ export function DaySheet({
         }}
       />
     </>
+  );
+}
+
+// ─────────────────────────────────────────────
+// Skeleton Loading
+// ─────────────────────────────────────────────
+
+function DaySheetSkeleton() {
+  return (
+    <div className="space-y-6 animate-in fade-in-0 duration-300">
+      {/* Tarefas do dia skeleton */}
+      <div>
+        <Skeleton className="mb-3 h-3 w-24" />
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center gap-2">
+              <Skeleton className="size-4 shrink-0 rounded" />
+              <Skeleton className="h-4 flex-1" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <Separator />
+
+      {/* Timer skeleton */}
+      <div>
+        <Skeleton className="mb-3 h-3 w-14" />
+        <Skeleton className="h-48 w-full rounded-xl" />
+      </div>
+
+      <Separator />
+
+      {/* Tarefas adicionais skeleton */}
+      <div>
+        <Skeleton className="mb-3 h-3 w-32" />
+        <Skeleton className="h-9 w-full rounded-xl" />
+      </div>
+
+      <Skeleton className="h-10 w-full rounded-xl" />
+    </div>
   );
 }
 
