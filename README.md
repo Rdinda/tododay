@@ -1,75 +1,178 @@
-# TodoDay - Bootstrap Tecnico
+<p align="center">
+  <img src="public/logo.png" alt="TodoDay Logo" width="80" height="80" style="border-radius: 16px;" />
+</p>
 
-Base inicial do produto usando Next.js + Prisma + PostgreSQL com shell autenticado.
+<h1 align="center">TodoDay</h1>
 
-## Stack
+<p align="center">
+  <strong>Foque no que importa. Todo dia, 3 tarefas principais.</strong>
+</p>
 
-- Next.js (App Router) + TypeScript
-- Prisma ORM
-- PostgreSQL
-- Tailwind CSS v4
-- Base de componentes UI estilo shadcn (tokens + componente `Button`)
+<p align="center">
+  <a href="#-features">Features</a> •
+  <a href="#-tech-stack">Tech Stack</a> •
+  <a href="#-getting-started">Getting Started</a> •
+  <a href="#-project-structure">Project Structure</a> •
+  <a href="#-contributing">Contributing</a> •
+  <a href="#-license">License</a>
+</p>
 
-## Requisitos
+---
 
-- Node.js 20+
-- PostgreSQL 15+
-- npm 10+
+## 📋 About
 
-## Setup por ambiente
+**TodoDay** is a minimalist daily task management app designed to help you focus on what matters most. Every day, you define your **3 main tasks** and track your progress with a built-in **Pomodoro timer**.
 
-### Dev
+Key principles:
+- 🎯 **Focus** — Limit yourself to 3 high-priority tasks per day
+- 🔄 **Flexibility** — Migrate unfinished tasks to future days
+- 📊 **Accountability** — Visual calendar shows your daily track record
+- ⏱️ **Deep work** — Built-in Pomodoro timer for focused sessions
 
-1. Instale dependencias:
+## ✨ Features
+
+- **Daily Task Management** — Set 3 main tasks per day and track completion
+- **Task Migration** — Move unfinished tasks to another day with a date picker
+- **Pomodoro Timer** — Integrated timer with session tracking
+- **Calendar View** — Monthly overview with color-coded task status (green = done, amber = pending)
+- **Day Closing** — End-of-day review with notes and status tracking
+- **Streak Tracking** — Monitor your consistency over time
+- **Extra Tasks** — Add additional low-priority tasks alongside your main 3
+- **Skeleton Loading** — Polished loading states for a smooth UX
+- **Passcode Auth** — Simple server-side authentication with HTTP-only cookies
+- **Offline-first DB** — SQLite database, no external database required
+
+## 🛠 Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| **Framework** | [Next.js 16](https://nextjs.org/) (App Router, Turbopack) |
+| **Language** | TypeScript 5 |
+| **Database** | SQLite via [Prisma 7](https://www.prisma.io/) + better-sqlite3 |
+| **Styling** | [Tailwind CSS v4](https://tailwindcss.com/) |
+| **UI Components** | [shadcn/ui](https://ui.shadcn.com/) (Base UI) |
+| **Date Picker** | [react-day-picker](https://react-day-picker.js.org/) |
+| **Runtime** | Node.js 20+ |
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) 20+
+- [pnpm](https://pnpm.io/) (recommended) or npm
+
+### Installation
+
+1. **Clone the repository:**
 
    ```bash
-   npm install
+   git clone https://github.com/Rdinda/tododay.git
+   cd tododay
    ```
 
-2. Configure ambiente (copie os valores para seu `.env`):
+2. **Install dependencies:**
 
    ```bash
-   DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/tododay_dev?schema=public"
-   TODODAY_ACCESS_PASSCODE="tododay-dev"
+   pnpm install
    ```
 
-3. Gere cliente Prisma e aplique migracao:
+3. **Configure environment variables:**
 
    ```bash
-   npx prisma generate
-   npx prisma migrate dev
+   cp .env.example .env
    ```
 
-4. Suba o app:
+   Edit `.env`:
+   ```env
+   TODODAY_ACCESS_PASSCODE="your-secure-passcode"
+   ```
+
+4. **Setup the database:**
 
    ```bash
-   npm run dev
+   pnpm dlx prisma generate
+   pnpm dlx prisma db push
    ```
 
-5. Acesse `http://localhost:3000`, faca login com o passcode e valide a rota autenticada em `/app`.
+5. **Start the dev server:**
 
-### Test
+   ```bash
+   pnpm dev
+   ```
 
-- Banco dedicado de teste (`tododay_test`).
-- Aplicar migracoes com `npx prisma migrate deploy`.
-- Seed opcional apenas para testes automatizados.
+6. **Open** [http://localhost:3000](http://localhost:3000) and login with your passcode.
 
-### Prod
+## 📁 Project Structure
 
-- Definir `DATABASE_URL` de producao.
-- Aplicar migracoes com `npx prisma migrate deploy` no pipeline.
-- Definir `TODODAY_ACCESS_PASSCODE` seguro e rotacionado por segredo do ambiente.
-- Executar `npm run build && npm run start`.
+```
+tododay/
+├── app/                    # Next.js App Router pages
+│   ├── layout.tsx          # Root layout with auth
+│   ├── page.tsx            # Main calendar page
+│   └── login/              # Login page
+├── components/
+│   ├── calendar/           # Calendar grid component
+│   ├── day-sheet/          # Day panel (execution, view, skeleton)
+│   ├── auth/               # Login form
+│   └── ui/                 # shadcn/ui components
+├── lib/
+│   ├── day-actions.ts      # Server actions (CRUD, migration)
+│   └── prisma.ts           # Prisma client singleton
+├── prisma/
+│   ├── schema.prisma       # Database schema
+│   └── dev.db              # SQLite database (auto-generated)
+├── public/                 # Static assets (logo)
+└── middleware.ts           # Auth middleware
+```
 
-## Decisoes tecnicas
+## 🗃 Database Schema
 
-- **Autenticacao inicial:** passcode server-side com cookie HTTP-only (`tododay_session`) para liberar rapidamente o shell protegido sem travar em integracao completa de identidade.
-- **Prisma como fonte de verdade de dominio:** schema inclui `User`, `Day`, `Task` e `PomodoroSession`, alem das entidades de autenticacao.
-- **Design tokens minimos:** variaveis globais de cor e borda para acelerar evolucao de UI sem acoplamento ao tema default.
+```
+User ──┐
+       │ 1:N
+       ▼
+      Day ──┐
+       │    │ 1:N
+       │    ▼
+       │  Task (HIGH/LOW priority, PENDING/DONE/SKIPPED status)
+       │
+       └──┐ 1:N
+          ▼
+       PomodoroSession
+```
 
-## Proximos incrementos priorizados
+## 🤝 Contributing
 
-1. Substituir passcode por autenticacao robusta (NextAuth/OAuth ou e-mail magic link).
-2. Criar camada de servicos para regras de negocio de dia/tarefas/streak.
-3. Implementar seeds apenas no escopo de testes (fixtures previsiveis).
-4. Adicionar pipeline de CI com lint, typecheck e smoke de migracoes.
+Contributions are welcome! Here's how you can help:
+
+1. **Fork** the repository
+2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
+3. **Commit** your changes (`git commit -m 'feat: add amazing feature'`)
+4. **Push** to the branch (`git push origin feature/amazing-feature`)
+5. **Open** a Pull Request
+
+### Development Guidelines
+
+- Follow [Conventional Commits](https://www.conventionalcommits.org/) for commit messages
+- Run `pnpm lint` before submitting PRs
+- Keep components focused and reusable
+- Use Server Actions for all database operations
+
+## 📝 Roadmap
+
+- [ ] OAuth authentication (Google, GitHub)
+- [ ] Weekly/monthly analytics dashboard
+- [ ] PWA support for mobile
+- [ ] Task templates and recurring tasks
+- [ ] Dark/light theme toggle
+- [ ] Data export (JSON/CSV)
+
+## 📄 License
+
+This project is open source and available under the [MIT License](LICENSE).
+
+---
+
+<p align="center">
+  Built with ❤️ by <a href="https://github.com/Rdinda">Rdinda</a>
+</p>
